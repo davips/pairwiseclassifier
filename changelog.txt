@@ -1,0 +1,1 @@
+First version: interpolated value is converted to a hard prediction through binarization
