@@ -119,7 +119,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             targets = self.Xw_tr[:, -1]
             l = []
             for i in range(X.shape[0]):
-                x = X[i:i + 1, :]
+                x = X[i : i + 1, :]
                 Xts = pairs(x, self.Xw_tr[:, :-1])
                 zts = self.alg.predict(Xts)
 
