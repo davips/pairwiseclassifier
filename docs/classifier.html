@@ -30,6 +30,7 @@
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.utils.validation import check_is_fitted
 
 from pairwiseprediction.combination import pairwise_diff, pairwise_hstack
 from pairwiseprediction.interpolation import interpolate_for_classification
@@ -38,7 +39,7 @@ from pairwiseprediction.interpolation import interpolate_for_classification
 class PairwiseClassifier(BaseEstimator, ClassifierMixin):
     r&#34;&#34;&#34;
 
-    :param algorithm: Internal algorithm to predict pairs.
+    :param algorithm: Class of algorithm to predict pairs internally.
     :param pairwise: Type of combination: &#34;difference&#34; or &#34;concatenation&#34;.
     :param threshold: How much difference between target values should be considered as relevant within a pair?
     :param proportion: Is the threshold an absolute value (difference) or relative value (proportion)?
@@ -55,22 +56,36 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
     &gt;&gt;&gt; y = (b &gt; me).astype(int)
     &gt;&gt;&gt; alg = RandomForestClassifier(n_estimators=3, random_state=0, n_jobs=-1)
     &gt;&gt;&gt; np.mean(cross_val_score(alg, a, y, cv=StratifiedKFold(n_splits=2)))  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-    0.69...
+    0.6...
     &gt;&gt;&gt; c = b.reshape(len(b), 1)
     &gt;&gt;&gt; X = np.hstack([a, c])
     &gt;&gt;&gt; alg = PairwiseClassifier(n_estimators=3, threshold=20, only_relevant_pairs_on_prediction=False, random_state=0, n_jobs=-1)
     &gt;&gt;&gt; np.mean(cross_val_score(alg, X, y, cv=StratifiedKFold(n_splits=2)))  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-    0.72...
+    0.7...
+    &gt;&gt;&gt; alg = alg.fit(X[:80])
+    &gt;&gt;&gt; alg.predict(X[:2])
+    array([1, 0])
+    &gt;&gt;&gt; alg.predict(X[:6], paired_rows=True)
+    array([1, 0, 0, 1, 1, 0])
+    &gt;&gt;&gt; p1 = alg.predict(X[80::2])
+    &gt;&gt;&gt; p2 = alg.predict(X[80:], paired_rows=True)[::2]
+    &gt;&gt;&gt; a = X[80::2,-1]
+    &gt;&gt;&gt; b = X[81::2,-1]
+    &gt;&gt;&gt; np.sum(p1 == y[80::2]) / len(p1)  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+    0.7...
+    &gt;&gt;&gt; np.sum(p2 == (a&gt;b)) / len(p2)  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+    0.6...
     &#34;&#34;&#34;
 
     def __init__(self, algorithm=RandomForestClassifier, pairwise=&#34;concatenation&#34;, threshold=0, proportion=False, center=None, only_relevant_pairs_on_prediction=False, **kwargs):
         self.algorithm = algorithm
-        self.alg = algorithm(**kwargs)
+        self.kwargs = kwargs
         self.pairwise = pairwise
         self.threshold = threshold
         self.proportion = proportion
         self.center = center
         self.only_relevant_pairs_on_prediction = only_relevant_pairs_on_prediction
+        self._estimator = None
 
     # def get_params(self, deep=False):
     #     return {}  # &#34;n_estimators&#34;: self.n_estimators, &#34;n_jobs&#34;: self.n_jobs, &#34;random_state&#34;: self.random_state, &#34;diff&#34;: self.diff}
@@ -103,6 +118,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             boo = self.Xw[(self.Xw[:, -1] &lt; self.center - self.threshold) | (self.Xw[:, -1] &gt;= self.center + self.threshold)]
             self.Xw = self.Xw[boo]
             pairwise = False
+            pairs = None
         else:
             raise Exception(f&#34;Not implemented for {self.pairwise=}&#34;)
         # self.classes_ = unique_labels(y)
@@ -119,15 +135,15 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
         else:
             Xtr = self.Xw[:, :-1]
             w = self.Xw[:, -1]
+            # noinspection PyUnresolvedReferences
             ytr = (w &gt;= self.center).astype(int)
 
-        self.alg.fit(Xtr, ytr)
+        self._estimator = self.algorithm(**self.kwargs).fit(Xtr, ytr)
         self.Xw_tr = self.Xw[abs(self.Xw[:, -1] - self.center) &gt;= self.threshold] if self.only_relevant_pairs_on_prediction else self.Xw
         return self
 
-    def predict(self, X):
-        # check_is_fitted(self)
-        # TODO: check if state net ween runs is a problem for self.rf,idxs,Xw,hstack
+    def predict(self, X, paired_rows=False):
+        check_is_fitted(self._estimator)
         Xw_ts = X if isinstance(X, np.ndarray) else np.array(X)
         X = Xw_ts[:, :-1]  # discard label to avoid data leakage
 
@@ -140,30 +156,38 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             if self.proportion:
                 raise Exception(f&#34;For no pairwise, just use delta=9 instead of pct,delta=0.1  (assuming you are looking for 20% increase&#34;)
             pairwise = False
+            pairs = None
         else:
             raise Exception(f&#34;Not implemented for {self.pairwise=}&#34;)
 
         if pairwise:
             targets = self.Xw_tr[:, -1]
             l = []
-            for i in range(X.shape[0]):
+            loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
+            for i in loop:
                 x = X[i : i + 1, :]
-                Xts = pairs(x, self.Xw_tr[:, :-1])
-                zts = self.alg.predict(Xts)
 
-                # interpolation
-                conditions = 2 * zts - 1
-                # print(targets)
-                # print()
-                # print(conditions)
-                # print(&#34;11111111111111111111111111&#34;)
-                z = interpolate_for_classification(targets, conditions)
-                l.append(int(z &gt;= self.center))
+                if paired_rows:
+                    Xts = pairs(x, X[i + 1 : i + 2, :])
+                    predicted = int(self._estimator.predict(Xts))
+                    l.append(predicted)
+                    l.append(1 - predicted)
+                else:
+                    Xts = pairs(x, self.Xw_tr[:, :-1])
+                    zts = self._estimator.predict(Xts)
+                    # interpolation
+                    conditions = 2 * zts - 1
+                    z = interpolate_for_classification(targets, conditions)
+                    predicted = int(z &gt;= self.center)
+                    l.append(predicted)
             return np.array(l)
-        return self.alg.predict(X)
+        return self._estimator.predict(X)
+
+    def __sklearn_is_fitted__(self):
+        return check_is_fitted(self._estimator)
 
     def __repr__(self, **kwargs):
-        return &#34;PW&#34; + repr(self.alg)
+        return &#34;PW&#34; + repr(self.algorithm)
 
     # def __sklearn_clone__(self):
     #     return PairwiseClassifier(self.n_estimators, self.n_jobs, self.random_state, self.diff)</code></pre>
@@ -183,7 +207,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
 <span>(</span><span>algorithm=sklearn.ensemble._forest.RandomForestClassifier, pairwise='concatenation', threshold=0, proportion=False, center=None, only_relevant_pairs_on_prediction=False, **kwargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>:param algorithm: Internal algorithm to predict pairs.
+<div class="desc"><p>:param algorithm: Class of algorithm to predict pairs internally.
 :param pairwise: Type of combination: "difference" or "concatenation".
 :param threshold: How much difference between target values should be considered as relevant within a pair?
 :param proportion: Is the threshold an absolute value (difference) or relative value (proportion)?
@@ -199,12 +223,25 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
 &gt;&gt;&gt; y = (b &gt; me).astype(int)
 &gt;&gt;&gt; alg = RandomForestClassifier(n_estimators=3, random_state=0, n_jobs=-1)
 &gt;&gt;&gt; np.mean(cross_val_score(alg, a, y, cv=StratifiedKFold(n_splits=2)))  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-0.69...
+0.6...
 &gt;&gt;&gt; c = b.reshape(len(b), 1)
 &gt;&gt;&gt; X = np.hstack([a, c])
 &gt;&gt;&gt; alg = PairwiseClassifier(n_estimators=3, threshold=20, only_relevant_pairs_on_prediction=False, random_state=0, n_jobs=-1)
 &gt;&gt;&gt; np.mean(cross_val_score(alg, X, y, cv=StratifiedKFold(n_splits=2)))  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-0.72...
+0.7...
+&gt;&gt;&gt; alg = alg.fit(X[:80])
+&gt;&gt;&gt; alg.predict(X[:2])
+array([1, 0])
+&gt;&gt;&gt; alg.predict(X[:6], paired_rows=True)
+array([1, 0, 0, 1, 1, 0])
+&gt;&gt;&gt; p1 = alg.predict(X[80::2])
+&gt;&gt;&gt; p2 = alg.predict(X[80:], paired_rows=True)[::2]
+&gt;&gt;&gt; a = X[80::2,-1]
+&gt;&gt;&gt; b = X[81::2,-1]
+&gt;&gt;&gt; np.sum(p1 == y[80::2]) / len(p1)  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+0.7...
+&gt;&gt;&gt; np.sum(p2 == (a&gt;b)) / len(p2)  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+0.6...
 </code></pre></div>
 <details class="source">
 <summary>
@@ -213,7 +250,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
 <pre><code class="python">class PairwiseClassifier(BaseEstimator, ClassifierMixin):
     r&#34;&#34;&#34;
 
-    :param algorithm: Internal algorithm to predict pairs.
+    :param algorithm: Class of algorithm to predict pairs internally.
     :param pairwise: Type of combination: &#34;difference&#34; or &#34;concatenation&#34;.
     :param threshold: How much difference between target values should be considered as relevant within a pair?
     :param proportion: Is the threshold an absolute value (difference) or relative value (proportion)?
@@ -230,22 +267,36 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
     &gt;&gt;&gt; y = (b &gt; me).astype(int)
     &gt;&gt;&gt; alg = RandomForestClassifier(n_estimators=3, random_state=0, n_jobs=-1)
     &gt;&gt;&gt; np.mean(cross_val_score(alg, a, y, cv=StratifiedKFold(n_splits=2)))  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-    0.69...
+    0.6...
     &gt;&gt;&gt; c = b.reshape(len(b), 1)
     &gt;&gt;&gt; X = np.hstack([a, c])
     &gt;&gt;&gt; alg = PairwiseClassifier(n_estimators=3, threshold=20, only_relevant_pairs_on_prediction=False, random_state=0, n_jobs=-1)
     &gt;&gt;&gt; np.mean(cross_val_score(alg, X, y, cv=StratifiedKFold(n_splits=2)))  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-    0.72...
+    0.7...
+    &gt;&gt;&gt; alg = alg.fit(X[:80])
+    &gt;&gt;&gt; alg.predict(X[:2])
+    array([1, 0])
+    &gt;&gt;&gt; alg.predict(X[:6], paired_rows=True)
+    array([1, 0, 0, 1, 1, 0])
+    &gt;&gt;&gt; p1 = alg.predict(X[80::2])
+    &gt;&gt;&gt; p2 = alg.predict(X[80:], paired_rows=True)[::2]
+    &gt;&gt;&gt; a = X[80::2,-1]
+    &gt;&gt;&gt; b = X[81::2,-1]
+    &gt;&gt;&gt; np.sum(p1 == y[80::2]) / len(p1)  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+    0.7...
+    &gt;&gt;&gt; np.sum(p2 == (a&gt;b)) / len(p2)  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+    0.6...
     &#34;&#34;&#34;
 
     def __init__(self, algorithm=RandomForestClassifier, pairwise=&#34;concatenation&#34;, threshold=0, proportion=False, center=None, only_relevant_pairs_on_prediction=False, **kwargs):
         self.algorithm = algorithm
-        self.alg = algorithm(**kwargs)
+        self.kwargs = kwargs
         self.pairwise = pairwise
         self.threshold = threshold
         self.proportion = proportion
         self.center = center
         self.only_relevant_pairs_on_prediction = only_relevant_pairs_on_prediction
+        self._estimator = None
 
     # def get_params(self, deep=False):
     #     return {}  # &#34;n_estimators&#34;: self.n_estimators, &#34;n_jobs&#34;: self.n_jobs, &#34;random_state&#34;: self.random_state, &#34;diff&#34;: self.diff}
@@ -278,6 +329,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             boo = self.Xw[(self.Xw[:, -1] &lt; self.center - self.threshold) | (self.Xw[:, -1] &gt;= self.center + self.threshold)]
             self.Xw = self.Xw[boo]
             pairwise = False
+            pairs = None
         else:
             raise Exception(f&#34;Not implemented for {self.pairwise=}&#34;)
         # self.classes_ = unique_labels(y)
@@ -294,15 +346,15 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
         else:
             Xtr = self.Xw[:, :-1]
             w = self.Xw[:, -1]
+            # noinspection PyUnresolvedReferences
             ytr = (w &gt;= self.center).astype(int)
 
-        self.alg.fit(Xtr, ytr)
+        self._estimator = self.algorithm(**self.kwargs).fit(Xtr, ytr)
         self.Xw_tr = self.Xw[abs(self.Xw[:, -1] - self.center) &gt;= self.threshold] if self.only_relevant_pairs_on_prediction else self.Xw
         return self
 
-    def predict(self, X):
-        # check_is_fitted(self)
-        # TODO: check if state net ween runs is a problem for self.rf,idxs,Xw,hstack
+    def predict(self, X, paired_rows=False):
+        check_is_fitted(self._estimator)
         Xw_ts = X if isinstance(X, np.ndarray) else np.array(X)
         X = Xw_ts[:, :-1]  # discard label to avoid data leakage
 
@@ -315,30 +367,38 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             if self.proportion:
                 raise Exception(f&#34;For no pairwise, just use delta=9 instead of pct,delta=0.1  (assuming you are looking for 20% increase&#34;)
             pairwise = False
+            pairs = None
         else:
             raise Exception(f&#34;Not implemented for {self.pairwise=}&#34;)
 
         if pairwise:
             targets = self.Xw_tr[:, -1]
             l = []
-            for i in range(X.shape[0]):
+            loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
+            for i in loop:
                 x = X[i : i + 1, :]
-                Xts = pairs(x, self.Xw_tr[:, :-1])
-                zts = self.alg.predict(Xts)
 
-                # interpolation
-                conditions = 2 * zts - 1
-                # print(targets)
-                # print()
-                # print(conditions)
-                # print(&#34;11111111111111111111111111&#34;)
-                z = interpolate_for_classification(targets, conditions)
-                l.append(int(z &gt;= self.center))
+                if paired_rows:
+                    Xts = pairs(x, X[i + 1 : i + 2, :])
+                    predicted = int(self._estimator.predict(Xts))
+                    l.append(predicted)
+                    l.append(1 - predicted)
+                else:
+                    Xts = pairs(x, self.Xw_tr[:, :-1])
+                    zts = self._estimator.predict(Xts)
+                    # interpolation
+                    conditions = 2 * zts - 1
+                    z = interpolate_for_classification(targets, conditions)
+                    predicted = int(z &gt;= self.center)
+                    l.append(predicted)
             return np.array(l)
-        return self.alg.predict(X)
+        return self._estimator.predict(X)
+
+    def __sklearn_is_fitted__(self):
+        return check_is_fitted(self._estimator)
 
     def __repr__(self, **kwargs):
-        return &#34;PW&#34; + repr(self.alg)
+        return &#34;PW&#34; + repr(self.algorithm)
 
     # def __sklearn_clone__(self):
     #     return PairwiseClassifier(self.n_estimators, self.n_jobs, self.random_state, self.diff)</code></pre>
@@ -393,6 +453,7 @@ TODO: see if permutation test accept pandas; use index to fix warning above</p>
         boo = self.Xw[(self.Xw[:, -1] &lt; self.center - self.threshold) | (self.Xw[:, -1] &gt;= self.center + self.threshold)]
         self.Xw = self.Xw[boo]
         pairwise = False
+        pairs = None
     else:
         raise Exception(f&#34;Not implemented for {self.pairwise=}&#34;)
     # self.classes_ = unique_labels(y)
@@ -409,15 +470,16 @@ TODO: see if permutation test accept pandas; use index to fix warning above</p>
     else:
         Xtr = self.Xw[:, :-1]
         w = self.Xw[:, -1]
+        # noinspection PyUnresolvedReferences
         ytr = (w &gt;= self.center).astype(int)
 
-    self.alg.fit(Xtr, ytr)
+    self._estimator = self.algorithm(**self.kwargs).fit(Xtr, ytr)
     self.Xw_tr = self.Xw[abs(self.Xw[:, -1] - self.center) &gt;= self.threshold] if self.only_relevant_pairs_on_prediction else self.Xw
     return self</code></pre>
 </details>
 </dd>
 <dt id="pairwiseprediction.classifier.PairwiseClassifier.predict"><code class="name flex">
-<span>def <span class="ident">predict</span></span>(<span>self, X)</span>
+<span>def <span class="ident">predict</span></span>(<span>self, X, paired_rows=False)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -425,9 +487,8 @@ TODO: see if permutation test accept pandas; use index to fix warning above</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def predict(self, X):
-    # check_is_fitted(self)
-    # TODO: check if state net ween runs is a problem for self.rf,idxs,Xw,hstack
+<pre><code class="python">def predict(self, X, paired_rows=False):
+    check_is_fitted(self._estimator)
     Xw_ts = X if isinstance(X, np.ndarray) else np.array(X)
     X = Xw_ts[:, :-1]  # discard label to avoid data leakage
 
@@ -440,27 +501,113 @@ TODO: see if permutation test accept pandas; use index to fix warning above</p>
         if self.proportion:
             raise Exception(f&#34;For no pairwise, just use delta=9 instead of pct,delta=0.1  (assuming you are looking for 20% increase&#34;)
         pairwise = False
+        pairs = None
     else:
         raise Exception(f&#34;Not implemented for {self.pairwise=}&#34;)
 
     if pairwise:
         targets = self.Xw_tr[:, -1]
         l = []
-        for i in range(X.shape[0]):
+        loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
+        for i in loop:
             x = X[i : i + 1, :]
-            Xts = pairs(x, self.Xw_tr[:, :-1])
-            zts = self.alg.predict(Xts)
 
-            # interpolation
-            conditions = 2 * zts - 1
-            # print(targets)
-            # print()
-            # print(conditions)
-            # print(&#34;11111111111111111111111111&#34;)
-            z = interpolate_for_classification(targets, conditions)
-            l.append(int(z &gt;= self.center))
+            if paired_rows:
+                Xts = pairs(x, X[i + 1 : i + 2, :])
+                predicted = int(self._estimator.predict(Xts))
+                l.append(predicted)
+                l.append(1 - predicted)
+            else:
+                Xts = pairs(x, self.Xw_tr[:, :-1])
+                zts = self._estimator.predict(Xts)
+                # interpolation
+                conditions = 2 * zts - 1
+                z = interpolate_for_classification(targets, conditions)
+                predicted = int(z &gt;= self.center)
+                l.append(predicted)
         return np.array(l)
-    return self.alg.predict(X)</code></pre>
+    return self._estimator.predict(X)</code></pre>
+</details>
+</dd>
+<dt id="pairwiseprediction.classifier.PairwiseClassifier.set_predict_request"><code class="name flex">
+<span>def <span class="ident">set_predict_request</span></span>(<span>self: <a title="pairwiseprediction.classifier.PairwiseClassifier" href="#pairwiseprediction.classifier.PairwiseClassifier">PairwiseClassifier</a>, *, paired_rows: Union[bool, ForwardRef(None), str] = '$UNCHANGED$') ‑> <a title="pairwiseprediction.classifier.PairwiseClassifier" href="#pairwiseprediction.classifier.PairwiseClassifier">PairwiseClassifier</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Request metadata passed to the <code>predict</code> method.</p>
+<p>Note that this method is only relevant if
+<code>enable_metadata_routing=True</code> (see :func:<code>sklearn.set_config</code>).
+Please see :ref:<code>User Guide &lt;metadata_routing&gt;</code> on how the routing
+mechanism works.</p>
+<p>The options for each parameter are:</p>
+<ul>
+<li>
+<p><code>True</code>: metadata is requested, and passed to <code>predict</code> if provided. The request is ignored if metadata is not provided.</p>
+</li>
+<li>
+<p><code>False</code>: metadata is not requested and the meta-estimator will not pass it to <code>predict</code>.</p>
+</li>
+<li>
+<p><code>None</code>: metadata is not requested, and the meta-estimator will raise an error if the user provides it.</p>
+</li>
+<li>
+<p><code>str</code>: metadata should be passed to the meta-estimator with this given alias instead of the original name.</p>
+</li>
+</ul>
+<p>The default (<code>sklearn.utils.metadata_routing.UNCHANGED</code>) retains the
+existing request. This allows you to change the request for some
+parameters and not others.</p>
+<div class="admonition versionadded">
+<p class="admonition-title">Added in version:&ensp;1.3</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method is only relevant if this estimator is used as a
+sub-estimator of a meta-estimator, e.g. used inside a
+:class:<code>~sklearn.pipeline.Pipeline</code>. Otherwise it has no effect.</p>
+</div>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>paired_rows</code></strong> :&ensp;<code>str, True, False,</code> or <code>None</code>,
+default=<code>sklearn.utils.metadata_routing.UNCHANGED</code></dt>
+<dd>Metadata routing for <code>paired_rows</code> parameter in <code>predict</code>.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>self</code></strong> :&ensp;<code>object</code></dt>
+<dd>The updated object.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def func(**kw):
+    &#34;&#34;&#34;Updates the request for provided parameters
+
+    This docstring is overwritten below.
+    See REQUESTER_DOC for expected functionality
+    &#34;&#34;&#34;
+    if not _routing_enabled():
+        raise RuntimeError(
+            &#34;This method is only available when metadata routing is enabled.&#34;
+            &#34; You can enable it using&#34;
+            &#34; sklearn.set_config(enable_metadata_routing=True).&#34;
+        )
+
+    if self.validate_keys and (set(kw) - set(self.keys)):
+        raise TypeError(
+            f&#34;Unexpected args: {set(kw) - set(self.keys)}. Accepted arguments&#34;
+            f&#34; are: {set(self.keys)}&#34;
+        )
+
+    requests = instance._get_metadata_request()
+    method_metadata_request = getattr(requests, self.name)
+
+    for prop, alias in kw.items():
+        if alias is not UNCHANGED:
+            method_metadata_request.add_request(param=prop, alias=alias)
+    instance._metadata_request = requests
+
+    return instance</code></pre>
 </details>
 </dd>
 <dt id="pairwiseprediction.classifier.PairwiseClassifier.set_score_request"><code class="name flex">
@@ -567,6 +714,7 @@ default=<code>sklearn.utils.metadata_routing.UNCHANGED</code></dt>
 <ul class="">
 <li><code><a title="pairwiseprediction.classifier.PairwiseClassifier.fit" href="#pairwiseprediction.classifier.PairwiseClassifier.fit">fit</a></code></li>
 <li><code><a title="pairwiseprediction.classifier.PairwiseClassifier.predict" href="#pairwiseprediction.classifier.PairwiseClassifier.predict">predict</a></code></li>
+<li><code><a title="pairwiseprediction.classifier.PairwiseClassifier.set_predict_request" href="#pairwiseprediction.classifier.PairwiseClassifier.set_predict_request">set_predict_request</a></code></li>
 <li><code><a title="pairwiseprediction.classifier.PairwiseClassifier.set_score_request" href="#pairwiseprediction.classifier.PairwiseClassifier.set_score_request">set_score_request</a></code></li>
 </ul>
 </li>

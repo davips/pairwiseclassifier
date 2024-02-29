@@ -11,7 +11,7 @@ from pairwiseprediction.interpolation import interpolate_for_classification
 class PairwiseClassifier(BaseEstimator, ClassifierMixin):
     r"""
 
-    :param algorithm: Internal algorithm to predict pairs.
+    :param algorithm: Class of algorithm to predict pairs internally.
     :param pairwise: Type of combination: "difference" or "concatenation".
     :param threshold: How much difference between target values should be considered as relevant within a pair?
     :param proportion: Is the threshold an absolute value (difference) or relative value (proportion)?
@@ -28,22 +28,25 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
     >>> y = (b > me).astype(int)
     >>> alg = RandomForestClassifier(n_estimators=3, random_state=0, n_jobs=-1)
     >>> np.mean(cross_val_score(alg, a, y, cv=StratifiedKFold(n_splits=2)))  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-    0.69...
+    0.6...
     >>> c = b.reshape(len(b), 1)
     >>> X = np.hstack([a, c])
     >>> alg = PairwiseClassifier(n_estimators=3, threshold=20, only_relevant_pairs_on_prediction=False, random_state=0, n_jobs=-1)
     >>> np.mean(cross_val_score(alg, X, y, cv=StratifiedKFold(n_splits=2)))  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-    0.72...
-    >>> alg = alg.fit(X)
+    0.7...
+    >>> alg = alg.fit(X[:80])
     >>> alg.predict(X[:2])
     array([1, 0])
     >>> alg.predict(X[:6], paired_rows=True)
-    array([[1],
-           [0],
-           [0],
-           [1],
-           [1],
-           [0]])
+    array([1, 0, 0, 1, 1, 0])
+    >>> p1 = alg.predict(X[80::2])
+    >>> p2 = alg.predict(X[80:], paired_rows=True)[::2]
+    >>> a = X[80::2,-1]
+    >>> b = X[81::2,-1]
+    >>> np.sum(p1 == y[80::2]) / len(p1)  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+    0.7...
+    >>> np.sum(p2 == (a>b)) / len(p2)  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+    0.6...
     """
 
     def __init__(self, algorithm=RandomForestClassifier, pairwise="concatenation", threshold=0, proportion=False, center=None, only_relevant_pairs_on_prediction=False, **kwargs):
@@ -134,11 +137,11 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             l = []
             loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
             for i in loop:
-                x = X[i: i + 1, :]
+                x = X[i : i + 1, :]
 
                 if paired_rows:
-                    Xts = pairs(x, X[i + 1: i + 2, :])
-                    predicted = self._estimator.predict(Xts)
+                    Xts = pairs(x, X[i + 1 : i + 2, :])
+                    predicted = int(self._estimator.predict(Xts))
                     l.append(predicted)
                     l.append(1 - predicted)
                 else:

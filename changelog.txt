@@ -1,1 +1,1 @@
-First version: interpolated value is converted to a hard prediction through binarization
+Check fitted; add option to predict paired rows «odd,even»
