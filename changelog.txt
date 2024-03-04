@@ -1,1 +1,1 @@
-Check fitted; add option to predict paired rows «odd,even»
+Add option to 'predict' probabilities

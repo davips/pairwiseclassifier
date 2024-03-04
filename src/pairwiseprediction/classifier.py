@@ -114,7 +114,47 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
         self.Xw_tr = self.Xw[abs(self.Xw[:, -1] - self.center) >= self.threshold] if self.only_relevant_pairs_on_prediction else self.Xw
         return self
 
-    def predict(self, X, paired_rows=False):
+    def predict_proba(self, X, paired_rows=False):
+        """
+        >>> import numpy as np
+        >>> from sklearn.datasets import load_diabetes
+        >>> from sklearn.ensemble import RandomForestClassifier
+        >>> a, b = load_diabetes(return_X_y=True)
+        >>> me = np.mean(b)
+        >>> y = (b > me).astype(int)
+        >>> alg = RandomForestClassifier(n_estimators=10, random_state=0, n_jobs=-1)
+        >>> alg = alg.fit(a, y)
+        >>> y[:5], b[:5], me  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+        (array([0, 0, 0, 1, 0]), array([151.,  75., 141., 206., 135.]), 152...)
+        >>> np.round(alg.predict_proba(a[:5]), 2)  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+        array([[0.7, 0.3],
+               [1. , 0. ],
+               [0.9, 0.1],
+               [0. , 1. ],
+               [1. , 0. ]])
+        >>> c = b.reshape(len(b), 1)
+        >>> X = np.hstack([a, c])
+        >>> alg = PairwiseClassifier(n_estimators=30, threshold=20, only_relevant_pairs_on_prediction=False, random_state=0, n_jobs=-1)
+        >>> alg = alg.fit(X)
+        >>> np.round(alg.predict_proba(X[:5]), 2)  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+        array([[0.9 , 0.1 ],
+               [0.41, 0.59],
+               [0.96, 0.04],
+               [0.76, 0.24],
+               [0.74, 0.26]])
+        >>> b[:6]
+        array([151.,  75., 141., 206., 135.,  97.])
+        >>> # 151 > 75  →  label=1
+        >>> alg.predict(X[:6], paired_rows=True)[::2]
+        array([1, 0, 1])
+        >>> alg.predict_proba(X[:6], paired_rows=True)[::2]
+        array([[0. , 1. ],
+               [1. , 0. ],
+               [0.1, 0.9]])
+        """
+        return self.predict(X, paired_rows, predict_proba=True)
+
+    def predict(self, X, paired_rows=False, predict_proba=False):
         check_is_fitted(self._estimator)
         Xw_ts = X if isinstance(X, np.ndarray) else np.array(X)
         X = Xw_ts[:, :-1]  # discard label to avoid data leakage
@@ -134,6 +174,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
 
         if pairwise:
             targets = self.Xw_tr[:, -1]
+            pos_ampl, neg_ampl = (np.max(targets) - self.center, self.center - np.min(targets)) if predict_proba else (None, None)
             l = []
             loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
             for i in loop:
@@ -141,7 +182,10 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
 
                 if paired_rows:
                     Xts = pairs(x, X[i + 1 : i + 2, :])
-                    predicted = int(self._estimator.predict(Xts))
+                    if predict_proba:
+                        predicted = self._estimator.predict_proba(Xts)[0]
+                    else:
+                        predicted = int(self._estimator.predict(Xts)[0])
                     l.append(predicted)
                     l.append(1 - predicted)
                 else:
@@ -150,7 +194,12 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
                     # interpolation
                     conditions = 2 * zts - 1
                     z = interpolate_for_classification(targets, conditions)
-                    predicted = int(z >= self.center)
+                    if predict_proba:
+                        d = float(z - self.center)
+                        p = (d / pos_ampl) if d > 0 else (-d / neg_ampl)
+                        predicted = [1 - p, p]
+                    else:
+                        predicted = int(z >= self.center)
                     l.append(predicted)
             return np.array(l)
         return self._estimator.predict(X)

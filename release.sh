@@ -32,7 +32,7 @@ read -p "press enter"
 #################################################################################
 echo ">>>>>>   install project package for IDE class hierarchy <<<<<<<<" 
 echo "          (to remove duplicates from IDE class hierarchy)"
-source /home/davi/.cache/pypoetry/virtualenvs/pairwiseprediction-Vns3XLRr-py3.11
+source /home/davi/.cache/pypoetry/virtualenvs/pairwiseprediction-Vns3XLRr-py3.11/bin/activate
 pip install .
 #################################################################################
 #################################################################################
