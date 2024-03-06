@@ -263,7 +263,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
         x = DataFrame(x, columns=columns)
         Xtr = DataFrame(self.Xtr, columns=columns)
         explainer = dx.Explainer(model=self._estimator, data=Xtr, y=self.ytr, verbose=False)
-        predictparts = dx.Explainer.predict_parts(explainer, new_observation=x, type="shap", processes=1, random_state=seed, **kwargs)
+        predictparts = dx.Explainer.predict_parts(explainer, new_observation=x, type="shap", random_state=seed, **kwargs)
         zz = zip(predictparts.result["variable"], predictparts.result["contribution"])
         var__val_shap = Dict((name_val.split(" = ")[0], (float(name_val.split(" = ")[1:][0]), co)) for name_val, co in zz)
         return var__val_shap

@@ -1,1 +1,1 @@
-Implement SHAP
+Enable parallelism through kwargs
