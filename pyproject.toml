@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pairwiseprediction"
-version = "0.240306.0"
+version = "0.240306.1"
 description = "Handle a regression problem inducing the model on pairs A,B of instances"
 authors = ["davips <dpsabc@gmail.com>"]
 readme = "README.md"
