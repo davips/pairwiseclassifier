@@ -1,1 +1,1 @@
-Add option to 'predict' probabilities
+Implement SHAP

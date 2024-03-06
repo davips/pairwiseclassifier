@@ -25,6 +25,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
     >>> from sklearn.ensemble import RandomForestClassifier
     >>> a, b = load_diabetes(return_X_y=True)
     >>> me = np.mean(b)
+    >>> # noinspection PyUnresolvedReferences
     >>> y = (b > me).astype(int)
     >>> alg = RandomForestClassifier(n_estimators=3, random_state=0, n_jobs=-1)
     >>> np.mean(cross_val_score(alg, a, y, cv=StratifiedKFold(n_splits=2)))  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
@@ -67,8 +68,9 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
         WARNING: y is ignored; permutation test wont work
         TODO: see if permutation test accept pandas; use index to fix warning above
 
-        :param X:
-        :param y:
+        :param X:   Last column is the continuous target.
+        :param y:   Ignored.
+
         :return:
         """
         self.Xw = X if isinstance(X, np.ndarray) else np.array(X)
@@ -111,16 +113,23 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             ytr = (w >= self.center).astype(int)
 
         self._estimator = self.algorithm(**self.kwargs).fit(Xtr, ytr)
+        self.Xtr, self.ytr = Xtr, ytr
         self.Xw_tr = self.Xw[abs(self.Xw[:, -1] - self.center) >= self.threshold] if self.only_relevant_pairs_on_prediction else self.Xw
         return self
 
     def predict_proba(self, X, paired_rows=False):
         """
+
+        :param X:               Last column is discarded.
+        :param paired_rows:
+        :return:
+
         >>> import numpy as np
         >>> from sklearn.datasets import load_diabetes
         >>> from sklearn.ensemble import RandomForestClassifier
         >>> a, b = load_diabetes(return_X_y=True)
         >>> me = np.mean(b)
+        >>> # noinspection PyUnresolvedReferences
         >>> y = (b > me).astype(int)
         >>> alg = RandomForestClassifier(n_estimators=10, random_state=0, n_jobs=-1)
         >>> alg = alg.fit(a, y)
@@ -155,6 +164,13 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
         return self.predict(X, paired_rows, predict_proba=True)
 
     def predict(self, X, paired_rows=False, predict_proba=False):
+        """
+
+        :param X:               Last column is discarded.
+        :param paired_rows:
+        :param predict_proba:
+        :return:
+        """
         check_is_fitted(self._estimator)
         Xw_ts = X if isinstance(X, np.ndarray) else np.array(X)
         X = Xw_ts[:, :-1]  # discard label to avoid data leakage
@@ -178,10 +194,9 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             l = []
             loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
             for i in loop:
-                x = X[i : i + 1, :]
-
+                x = X[i: i + 1, :]
                 if paired_rows:
-                    Xts = pairs(x, X[i + 1 : i + 2, :])
+                    Xts = pairs(x, X[i + 1: i + 2, :])
                     if predict_proba:
                         predicted = self._estimator.predict_proba(Xts)[0]
                     else:
@@ -203,6 +218,54 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
                     l.append(predicted)
             return np.array(l)
         return self._estimator.predict(X)
+
+    def shap(self, xa, xb, columns, seed=0, **kwargs):
+        """
+        Return an indexed dict {variable: (value, SHAP)} for the given pair of instances
+
+        A, B: last column is discarded.
+
+        :param xa:      Test instance A.
+        :param xb:      Test instance B.
+        :param columns: Column names for a single instance.
+        :param seed:
+        :return:
+
+        >>> import numpy as np
+        >>> from pandas import DataFrame
+        >>> from sklearn.datasets import load_diabetes
+        >>> from sklearn.ensemble import RandomForestClassifier
+        >>> a, b = load_diabetes(return_X_y=True)
+        >>> a = a[:, :3]
+        >>> c = b.reshape(len(b), 1)
+        >>> X = np.hstack([a, c])
+        >>> alg = PairwiseClassifier(n_estimators=3, threshold=20, only_relevant_pairs_on_prediction=False, random_state=0, n_jobs=-1)
+        >>> alg = alg.fit(X[:80])
+        >>> d = alg.shap(X[0], X[1], columns=list("abc"))
+        >>> d.sort()
+        >>> d # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+        IndexedOrderedDict([('a_a', (0.038..., 0.078...)), ('a_b', (0.050..., -0.007...)), ('a_c', (0.061..., 0.079...)), ('b_a', (-0.001..., 0.085...)), ('b_b', (-0.044..., 0.025...)), ('b_c', (-0.051..., 0.237...))])
+        """
+        check_is_fitted(self._estimator)
+        import dalex as dx
+        from indexed import Dict
+        from pandas import DataFrame
+        f = lambda i: [f"{i}_{col}" for col in columns]
+        columns = f("a") + f("b")
+        self._estimator.feature_names_in_ = columns
+        if self.pairwise == "difference":
+            x = pairwise_diff(xa[:-1].reshape(1, -1), xb[:-1].reshape(1, -1))
+        elif self.pairwise == "concatenation":
+            x = pairwise_hstack(xa[:-1].reshape(1, -1), xb[:-1].reshape(1, -1))
+        else:
+            raise Exception(f"Not implemented for {self.pairwise=}")
+        x = DataFrame(x, columns=columns)
+        Xtr = DataFrame(self.Xtr, columns=columns)
+        explainer = dx.Explainer(model=self._estimator, data=Xtr, y=self.ytr, verbose=False)
+        predictparts = dx.Explainer.predict_parts(explainer, new_observation=x, type="shap", processes=1, random_state=seed, **kwargs)
+        zz = zip(predictparts.result["variable"], predictparts.result["contribution"])
+        var__val_shap = Dict((name_val.split(" = ")[0], (float(name_val.split(" = ")[1:][0]), co)) for name_val, co in zz)
+        return var__val_shap
 
     def __sklearn_is_fitted__(self):
         return check_is_fitted(self._estimator)
