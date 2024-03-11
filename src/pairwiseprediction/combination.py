@@ -56,3 +56,43 @@ def pairwise_hstack(A, B, handle_last_as_y=False):
         return np.hstack((tA[:, :-1], tB[:, :-1], D / tB[:, -1:]))
     else:
         return np.hstack((tA, tB))
+
+
+def pair_rows(M, reflexive):
+    """
+    >>> from numpy.random import default_rng
+    >>> X = np.array([[0.1, 0.26978671], [0.2, 0.01652764], [0.3, 0.91275558]])
+    >>> X
+    array([[0.1       , 0.26978671],
+           [0.2       , 0.01652764],
+           [0.3       , 0.91275558]])
+    >>> pair_rows(X, False)
+    array([[0.1       , 0.26978671],
+           [0.2       , 0.01652764],
+           [0.1       , 0.26978671],
+           [0.3       , 0.91275558],
+           [0.2       , 0.01652764],
+           [0.3       , 0.91275558]])
+    >>> pair_rows(X, True)
+    array([[0.1       , 0.26978671],
+           [0.2       , 0.01652764],
+           [0.2       , 0.01652764],
+           [0.1       , 0.26978671],
+           [0.1       , 0.26978671],
+           [0.3       , 0.91275558],
+           [0.3       , 0.91275558],
+           [0.1       , 0.26978671],
+           [0.2       , 0.01652764],
+           [0.3       , 0.91275558],
+           [0.3       , 0.91275558],
+           [0.2       , 0.01652764]])
+    """
+    lst = []
+    for i in range(M.shape[0]):
+        a = M[i]
+        for j in range(i + 1, M.shape[0]):
+            b = M[j]
+            lst.extend([a, b])
+            if reflexive:
+                lst.extend([b, a])
+    return np.array(lst)

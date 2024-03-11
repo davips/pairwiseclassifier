@@ -1,1 +1,1 @@
-Enable parallelism through kwargs
+Add OptimizedPairwiseClassifier

@@ -73,6 +73,11 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
 
         :return:
         """
+        return self.fit_(X)
+
+    def fit_(self, X, y=None, extra_kwargs=None):
+        if extra_kwargs is None:
+            extra_kwargs = {}
         self.Xw = X if isinstance(X, np.ndarray) else np.array(X)
         X = y = None
 
@@ -112,7 +117,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             # noinspection PyUnresolvedReferences
             ytr = (w >= self.center).astype(int)
 
-        self._estimator = self.algorithm(**self.kwargs).fit(Xtr, ytr)
+        self._estimator = self.algorithm(**self.kwargs, **extra_kwargs).fit(Xtr, ytr)
         self.Xtr, self.ytr = Xtr, ytr
         self.Xw_tr = self.Xw[abs(self.Xw[:, -1] - self.center) >= self.threshold] if self.only_relevant_pairs_on_prediction else self.Xw
         return self
@@ -194,9 +199,9 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             l = []
             loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
             for i in loop:
-                x = X[i : i + 1, :]
+                x = X[i: i + 1, :]
                 if paired_rows:
-                    Xts = pairs(x, X[i + 1 : i + 2, :])
+                    Xts = pairs(x, X[i + 1: i + 2, :])
                     if predict_proba:
                         predicted = self._estimator.predict_proba(Xts)[0]
                     else:
@@ -251,6 +256,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
         from indexed import Dict
         from pandas import DataFrame
 
+        # TODO: difference is working ok with this concatenation of column names?
         f = lambda i: [f"{i}_{col}" for col in columns]
         columns = f("a") + f("b")
         self._estimator.feature_names_in_ = columns
