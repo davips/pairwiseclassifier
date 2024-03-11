@@ -83,7 +83,47 @@ def pairwise_hstack(A, B, handle_last_as_y=False):
         D = tA[:, -1:] - tB[:, -1:]
         return np.hstack((tA[:, :-1], tB[:, :-1], D / tB[:, -1:]))
     else:
-        return np.hstack((tA, tB))</code></pre>
+        return np.hstack((tA, tB))
+
+
+def pair_rows(M, reflexive):
+    &#34;&#34;&#34;
+    &gt;&gt;&gt; from numpy.random import default_rng
+    &gt;&gt;&gt; X = np.array([[0.1, 0.26978671], [0.2, 0.01652764], [0.3, 0.91275558]])
+    &gt;&gt;&gt; X
+    array([[0.1       , 0.26978671],
+           [0.2       , 0.01652764],
+           [0.3       , 0.91275558]])
+    &gt;&gt;&gt; pair_rows(X, False)
+    array([[0.1       , 0.26978671],
+           [0.2       , 0.01652764],
+           [0.1       , 0.26978671],
+           [0.3       , 0.91275558],
+           [0.2       , 0.01652764],
+           [0.3       , 0.91275558]])
+    &gt;&gt;&gt; pair_rows(X, True)
+    array([[0.1       , 0.26978671],
+           [0.2       , 0.01652764],
+           [0.2       , 0.01652764],
+           [0.1       , 0.26978671],
+           [0.1       , 0.26978671],
+           [0.3       , 0.91275558],
+           [0.3       , 0.91275558],
+           [0.1       , 0.26978671],
+           [0.2       , 0.01652764],
+           [0.3       , 0.91275558],
+           [0.3       , 0.91275558],
+           [0.2       , 0.01652764]])
+    &#34;&#34;&#34;
+    lst = []
+    for i in range(M.shape[0]):
+        a = M[i]
+        for j in range(i + 1, M.shape[0]):
+            b = M[j]
+            lst.extend([a, b])
+            if reflexive:
+                lst.extend([b, a])
+    return np.array(lst)</code></pre>
 </details>
 </section>
 <section>
@@ -93,6 +133,81 @@ def pairwise_hstack(A, B, handle_last_as_y=False):
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="pairwiseprediction.combination.pair_rows"><code class="name flex">
+<span>def <span class="ident">pair_rows</span></span>(<span>M, reflexive)</span>
+</code></dt>
+<dd>
+<div class="desc"><pre><code class="language-python-repl">&gt;&gt;&gt; from numpy.random import default_rng
+&gt;&gt;&gt; X = np.array([[0.1, 0.26978671], [0.2, 0.01652764], [0.3, 0.91275558]])
+&gt;&gt;&gt; X
+array([[0.1       , 0.26978671],
+       [0.2       , 0.01652764],
+       [0.3       , 0.91275558]])
+&gt;&gt;&gt; pair_rows(X, False)
+array([[0.1       , 0.26978671],
+       [0.2       , 0.01652764],
+       [0.1       , 0.26978671],
+       [0.3       , 0.91275558],
+       [0.2       , 0.01652764],
+       [0.3       , 0.91275558]])
+&gt;&gt;&gt; pair_rows(X, True)
+array([[0.1       , 0.26978671],
+       [0.2       , 0.01652764],
+       [0.2       , 0.01652764],
+       [0.1       , 0.26978671],
+       [0.1       , 0.26978671],
+       [0.3       , 0.91275558],
+       [0.3       , 0.91275558],
+       [0.1       , 0.26978671],
+       [0.2       , 0.01652764],
+       [0.3       , 0.91275558],
+       [0.3       , 0.91275558],
+       [0.2       , 0.01652764]])
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def pair_rows(M, reflexive):
+    &#34;&#34;&#34;
+    &gt;&gt;&gt; from numpy.random import default_rng
+    &gt;&gt;&gt; X = np.array([[0.1, 0.26978671], [0.2, 0.01652764], [0.3, 0.91275558]])
+    &gt;&gt;&gt; X
+    array([[0.1       , 0.26978671],
+           [0.2       , 0.01652764],
+           [0.3       , 0.91275558]])
+    &gt;&gt;&gt; pair_rows(X, False)
+    array([[0.1       , 0.26978671],
+           [0.2       , 0.01652764],
+           [0.1       , 0.26978671],
+           [0.3       , 0.91275558],
+           [0.2       , 0.01652764],
+           [0.3       , 0.91275558]])
+    &gt;&gt;&gt; pair_rows(X, True)
+    array([[0.1       , 0.26978671],
+           [0.2       , 0.01652764],
+           [0.2       , 0.01652764],
+           [0.1       , 0.26978671],
+           [0.1       , 0.26978671],
+           [0.3       , 0.91275558],
+           [0.3       , 0.91275558],
+           [0.1       , 0.26978671],
+           [0.2       , 0.01652764],
+           [0.3       , 0.91275558],
+           [0.3       , 0.91275558],
+           [0.2       , 0.01652764]])
+    &#34;&#34;&#34;
+    lst = []
+    for i in range(M.shape[0]):
+        a = M[i]
+        for j in range(i + 1, M.shape[0]):
+            b = M[j]
+            lst.extend([a, b])
+            if reflexive:
+                lst.extend([b, a])
+    return np.array(lst)</code></pre>
+</details>
+</dd>
 <dt id="pairwiseprediction.combination.pairwise_diff"><code class="name flex">
 <span>def <span class="ident">pairwise_diff</span></span>(<span>A, B, pct=False)</span>
 </code></dt>
@@ -214,6 +329,7 @@ array([[0.63696169, 0.26978671, 0.63696169, 0.26978671],
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="pairwiseprediction.combination.pair_rows" href="#pairwiseprediction.combination.pair_rows">pair_rows</a></code></li>
 <li><code><a title="pairwiseprediction.combination.pairwise_diff" href="#pairwiseprediction.combination.pairwise_diff">pairwise_diff</a></code></li>
 <li><code><a title="pairwiseprediction.combination.pairwise_hstack" href="#pairwiseprediction.combination.pairwise_hstack">pairwise_hstack</a></code></li>
 </ul>

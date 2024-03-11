@@ -199,9 +199,9 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             l = []
             loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
             for i in loop:
-                x = X[i: i + 1, :]
+                x = X[i : i + 1, :]
                 if paired_rows:
-                    Xts = pairs(x, X[i + 1: i + 2, :])
+                    Xts = pairs(x, X[i + 1 : i + 2, :])
                     if predict_proba:
                         predicted = self._estimator.predict_proba(Xts)[0]
                     else:

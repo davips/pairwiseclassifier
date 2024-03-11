@@ -61,7 +61,20 @@ class OptimizedPairwiseClassifier(PairwiseClassifier):
     {'criterion': 'gini', 'max_depth': 9, 'max_leaf_nodes': 22, 'min_impurity_decrease': 0.008..., 'min_samples_leaf': 30, 'min_samples_split': 20}
     """
 
-    def __init__(self, search_space, n_iter, k=5, seed=0, algorithm=RandomForestClassifier, pairwise="concatenation", threshold=0, proportion=False, center=None, only_relevant_pairs_on_prediction=False, **kwargs):
+    def __init__(
+        self,
+        search_space,
+        n_iter,
+        k=5,
+        seed=0,
+        algorithm=RandomForestClassifier,
+        pairwise="concatenation",
+        threshold=0,
+        proportion=False,
+        center=None,
+        only_relevant_pairs_on_prediction=False,
+        **kwargs
+    ):
         super().__init__(algorithm, pairwise, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs)
         self.search_space = search_space
         self.n_iter = n_iter

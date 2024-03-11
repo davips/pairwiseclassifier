@@ -101,6 +101,11 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
 
         :return:
         &#34;&#34;&#34;
+        return self.fit_(X)
+
+    def fit_(self, X, y=None, extra_kwargs=None):
+        if extra_kwargs is None:
+            extra_kwargs = {}
         self.Xw = X if isinstance(X, np.ndarray) else np.array(X)
         X = y = None
 
@@ -140,7 +145,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             # noinspection PyUnresolvedReferences
             ytr = (w &gt;= self.center).astype(int)
 
-        self._estimator = self.algorithm(**self.kwargs).fit(Xtr, ytr)
+        self._estimator = self.algorithm(**self.kwargs, **extra_kwargs).fit(Xtr, ytr)
         self.Xtr, self.ytr = Xtr, ytr
         self.Xw_tr = self.Xw[abs(self.Xw[:, -1] - self.center) &gt;= self.threshold] if self.only_relevant_pairs_on_prediction else self.Xw
         return self
@@ -222,9 +227,9 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             l = []
             loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
             for i in loop:
-                x = X[i : i + 1, :]
+                x = X[i: i + 1, :]
                 if paired_rows:
-                    Xts = pairs(x, X[i + 1 : i + 2, :])
+                    Xts = pairs(x, X[i + 1: i + 2, :])
                     if predict_proba:
                         predicted = self._estimator.predict_proba(Xts)[0]
                     else:
@@ -279,6 +284,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
         from indexed import Dict
         from pandas import DataFrame
 
+        # TODO: difference is working ok with this concatenation of column names?
         f = lambda i: [f&#34;{i}_{col}&#34; for col in columns]
         columns = f(&#34;a&#34;) + f(&#34;b&#34;)
         self._estimator.feature_names_in_ = columns
@@ -426,6 +432,11 @@ array([1, 0, 0, 1, 1, 0])
 
         :return:
         &#34;&#34;&#34;
+        return self.fit_(X)
+
+    def fit_(self, X, y=None, extra_kwargs=None):
+        if extra_kwargs is None:
+            extra_kwargs = {}
         self.Xw = X if isinstance(X, np.ndarray) else np.array(X)
         X = y = None
 
@@ -465,7 +476,7 @@ array([1, 0, 0, 1, 1, 0])
             # noinspection PyUnresolvedReferences
             ytr = (w &gt;= self.center).astype(int)
 
-        self._estimator = self.algorithm(**self.kwargs).fit(Xtr, ytr)
+        self._estimator = self.algorithm(**self.kwargs, **extra_kwargs).fit(Xtr, ytr)
         self.Xtr, self.ytr = Xtr, ytr
         self.Xw_tr = self.Xw[abs(self.Xw[:, -1] - self.center) &gt;= self.threshold] if self.only_relevant_pairs_on_prediction else self.Xw
         return self
@@ -547,9 +558,9 @@ array([1, 0, 0, 1, 1, 0])
             l = []
             loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
             for i in loop:
-                x = X[i : i + 1, :]
+                x = X[i: i + 1, :]
                 if paired_rows:
-                    Xts = pairs(x, X[i + 1 : i + 2, :])
+                    Xts = pairs(x, X[i + 1: i + 2, :])
                     if predict_proba:
                         predicted = self._estimator.predict_proba(Xts)[0]
                     else:
@@ -604,6 +615,7 @@ array([1, 0, 0, 1, 1, 0])
         from indexed import Dict
         from pandas import DataFrame
 
+        # TODO: difference is working ok with this concatenation of column names?
         f = lambda i: [f&#34;{i}_{col}&#34; for col in columns]
         columns = f(&#34;a&#34;) + f(&#34;b&#34;)
         self._estimator.feature_names_in_ = columns
@@ -637,6 +649,10 @@ array([1, 0, 0, 1, 1, 0])
 <li>sklearn.utils._metadata_requests._MetadataRequester</li>
 <li>sklearn.base.ClassifierMixin</li>
 </ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="pairwiseprediction.optimized.OptimizedPairwiseClassifier" href="optimized.html#pairwiseprediction.optimized.OptimizedPairwiseClassifier">OptimizedPairwiseClassifier</a></li>
+</ul>
 <h3>Methods</h3>
 <dl>
 <dt id="pairwiseprediction.classifier.PairwiseClassifier.fit"><code class="name flex">
@@ -664,6 +680,21 @@ Ignored.</p>
 
     :return:
     &#34;&#34;&#34;
+    return self.fit_(X)</code></pre>
+</details>
+</dd>
+<dt id="pairwiseprediction.classifier.PairwiseClassifier.fit_"><code class="name flex">
+<span>def <span class="ident">fit_</span></span>(<span>self, X, y=None, extra_kwargs=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def fit_(self, X, y=None, extra_kwargs=None):
+    if extra_kwargs is None:
+        extra_kwargs = {}
     self.Xw = X if isinstance(X, np.ndarray) else np.array(X)
     X = y = None
 
@@ -703,7 +734,7 @@ Ignored.</p>
         # noinspection PyUnresolvedReferences
         ytr = (w &gt;= self.center).astype(int)
 
-    self._estimator = self.algorithm(**self.kwargs).fit(Xtr, ytr)
+    self._estimator = self.algorithm(**self.kwargs, **extra_kwargs).fit(Xtr, ytr)
     self.Xtr, self.ytr = Xtr, ytr
     self.Xw_tr = self.Xw[abs(self.Xw[:, -1] - self.center) &gt;= self.threshold] if self.only_relevant_pairs_on_prediction else self.Xw
     return self</code></pre>
@@ -753,9 +784,9 @@ Last column is discarded.
         l = []
         loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
         for i in loop:
-            x = X[i : i + 1, :]
+            x = X[i: i + 1, :]
             if paired_rows:
-                Xts = pairs(x, X[i + 1 : i + 2, :])
+                Xts = pairs(x, X[i + 1: i + 2, :])
                 if predict_proba:
                     predicted = self._estimator.predict_proba(Xts)[0]
                 else:
@@ -1185,6 +1216,7 @@ IndexedOrderedDict([('a_a', (0.038..., 0.078...)), ('a_b', (0.050..., -0.007...)
     from indexed import Dict
     from pandas import DataFrame
 
+    # TODO: difference is working ok with this concatenation of column names?
     f = lambda i: [f&#34;{i}_{col}&#34; for col in columns]
     columns = f(&#34;a&#34;) + f(&#34;b&#34;)
     self._estimator.feature_names_in_ = columns
@@ -1225,6 +1257,7 @@ IndexedOrderedDict([('a_a', (0.038..., 0.078...)), ('a_b', (0.050..., -0.007...)
 <h4><code><a title="pairwiseprediction.classifier.PairwiseClassifier" href="#pairwiseprediction.classifier.PairwiseClassifier">PairwiseClassifier</a></code></h4>
 <ul class="">
 <li><code><a title="pairwiseprediction.classifier.PairwiseClassifier.fit" href="#pairwiseprediction.classifier.PairwiseClassifier.fit">fit</a></code></li>
+<li><code><a title="pairwiseprediction.classifier.PairwiseClassifier.fit_" href="#pairwiseprediction.classifier.PairwiseClassifier.fit_">fit_</a></code></li>
 <li><code><a title="pairwiseprediction.classifier.PairwiseClassifier.predict" href="#pairwiseprediction.classifier.PairwiseClassifier.predict">predict</a></code></li>
 <li><code><a title="pairwiseprediction.classifier.PairwiseClassifier.predict_proba" href="#pairwiseprediction.classifier.PairwiseClassifier.predict_proba">predict_proba</a></code></li>
 <li><code><a title="pairwiseprediction.classifier.PairwiseClassifier.set_predict_proba_request" href="#pairwiseprediction.classifier.PairwiseClassifier.set_predict_proba_request">set_predict_proba_request</a></code></li>
