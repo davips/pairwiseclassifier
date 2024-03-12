@@ -97,4 +97,4 @@ echo "------------------- pushed ----------------------"
 echo; echo
 
 # echo "------------------- publish ----------------------"
-# poetry publish --build
+poetry publish --build

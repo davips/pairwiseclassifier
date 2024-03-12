@@ -227,9 +227,9 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             l = []
             loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
             for i in loop:
-                x = X[i: i + 1, :]
+                x = X[i : i + 1, :]
                 if paired_rows:
-                    Xts = pairs(x, X[i + 1: i + 2, :])
+                    Xts = pairs(x, X[i + 1 : i + 2, :])
                     if predict_proba:
                         predicted = self._estimator.predict_proba(Xts)[0]
                     else:
@@ -286,7 +286,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
 
         if self.pairwise == &#34;concatenation&#34;:
             f = lambda i: [f&#34;{i}_{col}&#34; for col in columns]
-            columns = (f(&#34;a&#34;) + f(&#34;b&#34;))
+            columns = f(&#34;a&#34;) + f(&#34;b&#34;)
         self._estimator.feature_names_in_ = columns
         if self.pairwise == &#34;difference&#34;:
             x = pairwise_diff(xa[:-1].reshape(1, -1), xb[:-1].reshape(1, -1))
@@ -560,9 +560,9 @@ array([1, 0, 0, 1, 1, 0])
             l = []
             loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
             for i in loop:
-                x = X[i: i + 1, :]
+                x = X[i : i + 1, :]
                 if paired_rows:
-                    Xts = pairs(x, X[i + 1: i + 2, :])
+                    Xts = pairs(x, X[i + 1 : i + 2, :])
                     if predict_proba:
                         predicted = self._estimator.predict_proba(Xts)[0]
                     else:
@@ -619,7 +619,7 @@ array([1, 0, 0, 1, 1, 0])
 
         if self.pairwise == &#34;concatenation&#34;:
             f = lambda i: [f&#34;{i}_{col}&#34; for col in columns]
-            columns = (f(&#34;a&#34;) + f(&#34;b&#34;))
+            columns = f(&#34;a&#34;) + f(&#34;b&#34;)
         self._estimator.feature_names_in_ = columns
         if self.pairwise == &#34;difference&#34;:
             x = pairwise_diff(xa[:-1].reshape(1, -1), xb[:-1].reshape(1, -1))
@@ -788,9 +788,9 @@ Last column is discarded.
         l = []
         loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
         for i in loop:
-            x = X[i: i + 1, :]
+            x = X[i : i + 1, :]
             if paired_rows:
-                Xts = pairs(x, X[i + 1: i + 2, :])
+                Xts = pairs(x, X[i + 1 : i + 2, :])
                 if predict_proba:
                     predicted = self._estimator.predict_proba(Xts)[0]
                 else:
@@ -1222,7 +1222,7 @@ IndexedOrderedDict([('a_a', (0.038..., 0.078...)), ('a_b', (0.050..., -0.007...)
 
     if self.pairwise == &#34;concatenation&#34;:
         f = lambda i: [f&#34;{i}_{col}&#34; for col in columns]
-        columns = (f(&#34;a&#34;) + f(&#34;b&#34;))
+        columns = f(&#34;a&#34;) + f(&#34;b&#34;)
     self._estimator.feature_names_in_ = columns
     if self.pairwise == &#34;difference&#34;:
         x = pairwise_diff(xa[:-1].reshape(1, -1), xb[:-1].reshape(1, -1))
