@@ -1,1 +1,1 @@
-Add OptimizedPairwiseClassifier
+Fix OptimizedPairwiseClassifier not running all `n_iter`
