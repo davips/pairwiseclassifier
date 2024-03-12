@@ -90,6 +90,7 @@ class OptimizedPairwiseClassifier(PairwiseClassifier):
     [(0.61..., {&#39;criterion&#39;: &#39;gini&#39;, &#39;max_depth&#39;: 9, &#39;max_leaf_nodes&#39;: 22, &#39;min_impurity_decrease&#39;: 0.008..., &#39;min_samples_leaf&#39;: 30, &#39;min_samples_split&#39;: 20}), (0.6023275581889547, {&#39;criterion&#39;: &#39;entropy&#39;, &#39;max_depth&#39;: 4, &#39;max_leaf_nodes&#39;: 24, &#39;min_impurity_decrease&#39;: 0.0011827442586893322, &#39;min_samples_leaf&#39;: 10, &#39;min_samples_split&#39;: 30})]
 
     &#34;&#34;&#34;
+
     def __init__(
         self,
         search_space,
@@ -152,7 +153,9 @@ class OptimizedPairwiseClassifier(PairwiseClassifier):
         return self
 
     def __sklearn_clone__(self):
-        return OptimizedPairwiseClassifier(self.search_space, self.n_iter, self.k, self.seed, self.algorithm, self.pairwise, self.threshold, self.proportion, self.center, self.only_relevant_pairs_on_prediction, **self.kwargs)</code></pre>
+        return OptimizedPairwiseClassifier(
+            self.search_space, self.n_iter, self.k, self.seed, self.algorithm, self.pairwise, self.threshold, self.proportion, self.center, self.only_relevant_pairs_on_prediction, **self.kwargs
+        )</code></pre>
 </details>
 </section>
 <section>
@@ -271,6 +274,7 @@ array([1, 0])
     [(0.61..., {&#39;criterion&#39;: &#39;gini&#39;, &#39;max_depth&#39;: 9, &#39;max_leaf_nodes&#39;: 22, &#39;min_impurity_decrease&#39;: 0.008..., &#39;min_samples_leaf&#39;: 30, &#39;min_samples_split&#39;: 20}), (0.6023275581889547, {&#39;criterion&#39;: &#39;entropy&#39;, &#39;max_depth&#39;: 4, &#39;max_leaf_nodes&#39;: 24, &#39;min_impurity_decrease&#39;: 0.0011827442586893322, &#39;min_samples_leaf&#39;: 10, &#39;min_samples_split&#39;: 30})]
 
     &#34;&#34;&#34;
+
     def __init__(
         self,
         search_space,
@@ -333,7 +337,9 @@ array([1, 0])
         return self
 
     def __sklearn_clone__(self):
-        return OptimizedPairwiseClassifier(self.search_space, self.n_iter, self.k, self.seed, self.algorithm, self.pairwise, self.threshold, self.proportion, self.center, self.only_relevant_pairs_on_prediction, **self.kwargs)</code></pre>
+        return OptimizedPairwiseClassifier(
+            self.search_space, self.n_iter, self.k, self.seed, self.algorithm, self.pairwise, self.threshold, self.proportion, self.center, self.only_relevant_pairs_on_prediction, **self.kwargs
+        )</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">

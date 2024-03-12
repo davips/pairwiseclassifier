@@ -227,9 +227,9 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             l = []
             loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
             for i in loop:
-                x = X[i : i + 1, :]
+                x = X[i: i + 1, :]
                 if paired_rows:
-                    Xts = pairs(x, X[i + 1 : i + 2, :])
+                    Xts = pairs(x, X[i + 1: i + 2, :])
                     if predict_proba:
                         predicted = self._estimator.predict_proba(Xts)[0]
                     else:
@@ -284,9 +284,9 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
         from indexed import Dict
         from pandas import DataFrame
 
-        # TODO: difference is working ok with this concatenation of column names?
-        f = lambda i: [f&#34;{i}_{col}&#34; for col in columns]
-        columns = f(&#34;a&#34;) + f(&#34;b&#34;)
+        if self.pairwise == &#34;concatenation&#34;:
+            f = lambda i: [f&#34;{i}_{col}&#34; for col in columns]
+            columns = (f(&#34;a&#34;) + f(&#34;b&#34;))
         self._estimator.feature_names_in_ = columns
         if self.pairwise == &#34;difference&#34;:
             x = pairwise_diff(xa[:-1].reshape(1, -1), xb[:-1].reshape(1, -1))
@@ -296,6 +296,8 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             raise Exception(f&#34;Not implemented for {self.pairwise=}&#34;)
         x = DataFrame(x, columns=columns)
         Xtr = DataFrame(self.Xtr, columns=columns)
+
+        # SHAP
         explainer = dx.Explainer(model=self._estimator, data=Xtr, y=self.ytr, verbose=False)
         predictparts = dx.Explainer.predict_parts(explainer, new_observation=x, type=&#34;shap&#34;, random_state=seed, **kwargs)
         zz = zip(predictparts.result[&#34;variable&#34;], predictparts.result[&#34;contribution&#34;])
@@ -558,9 +560,9 @@ array([1, 0, 0, 1, 1, 0])
             l = []
             loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
             for i in loop:
-                x = X[i : i + 1, :]
+                x = X[i: i + 1, :]
                 if paired_rows:
-                    Xts = pairs(x, X[i + 1 : i + 2, :])
+                    Xts = pairs(x, X[i + 1: i + 2, :])
                     if predict_proba:
                         predicted = self._estimator.predict_proba(Xts)[0]
                     else:
@@ -615,9 +617,9 @@ array([1, 0, 0, 1, 1, 0])
         from indexed import Dict
         from pandas import DataFrame
 
-        # TODO: difference is working ok with this concatenation of column names?
-        f = lambda i: [f&#34;{i}_{col}&#34; for col in columns]
-        columns = f(&#34;a&#34;) + f(&#34;b&#34;)
+        if self.pairwise == &#34;concatenation&#34;:
+            f = lambda i: [f&#34;{i}_{col}&#34; for col in columns]
+            columns = (f(&#34;a&#34;) + f(&#34;b&#34;))
         self._estimator.feature_names_in_ = columns
         if self.pairwise == &#34;difference&#34;:
             x = pairwise_diff(xa[:-1].reshape(1, -1), xb[:-1].reshape(1, -1))
@@ -627,6 +629,8 @@ array([1, 0, 0, 1, 1, 0])
             raise Exception(f&#34;Not implemented for {self.pairwise=}&#34;)
         x = DataFrame(x, columns=columns)
         Xtr = DataFrame(self.Xtr, columns=columns)
+
+        # SHAP
         explainer = dx.Explainer(model=self._estimator, data=Xtr, y=self.ytr, verbose=False)
         predictparts = dx.Explainer.predict_parts(explainer, new_observation=x, type=&#34;shap&#34;, random_state=seed, **kwargs)
         zz = zip(predictparts.result[&#34;variable&#34;], predictparts.result[&#34;contribution&#34;])
@@ -784,9 +788,9 @@ Last column is discarded.
         l = []
         loop = range(0, X.shape[0], 2) if paired_rows else range(X.shape[0])
         for i in loop:
-            x = X[i : i + 1, :]
+            x = X[i: i + 1, :]
             if paired_rows:
-                Xts = pairs(x, X[i + 1 : i + 2, :])
+                Xts = pairs(x, X[i + 1: i + 2, :])
                 if predict_proba:
                     predicted = self._estimator.predict_proba(Xts)[0]
                 else:
@@ -1216,9 +1220,9 @@ IndexedOrderedDict([('a_a', (0.038..., 0.078...)), ('a_b', (0.050..., -0.007...)
     from indexed import Dict
     from pandas import DataFrame
 
-    # TODO: difference is working ok with this concatenation of column names?
-    f = lambda i: [f&#34;{i}_{col}&#34; for col in columns]
-    columns = f(&#34;a&#34;) + f(&#34;b&#34;)
+    if self.pairwise == &#34;concatenation&#34;:
+        f = lambda i: [f&#34;{i}_{col}&#34; for col in columns]
+        columns = (f(&#34;a&#34;) + f(&#34;b&#34;))
     self._estimator.feature_names_in_ = columns
     if self.pairwise == &#34;difference&#34;:
         x = pairwise_diff(xa[:-1].reshape(1, -1), xb[:-1].reshape(1, -1))
@@ -1228,6 +1232,8 @@ IndexedOrderedDict([('a_a', (0.038..., 0.078...)), ('a_b', (0.050..., -0.007...)
         raise Exception(f&#34;Not implemented for {self.pairwise=}&#34;)
     x = DataFrame(x, columns=columns)
     Xtr = DataFrame(self.Xtr, columns=columns)
+
+    # SHAP
     explainer = dx.Explainer(model=self._estimator, data=Xtr, y=self.ytr, verbose=False)
     predictparts = dx.Explainer.predict_parts(explainer, new_observation=x, type=&#34;shap&#34;, random_state=seed, **kwargs)
     zz = zip(predictparts.result[&#34;variable&#34;], predictparts.result[&#34;contribution&#34;])
