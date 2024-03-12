@@ -131,8 +131,9 @@ class OptimizedPairwiseClassifier(PairwiseClassifier):
         # rs.fit()
 
         sampler = ParameterSampler(self.search_space, self.n_iter, random_state=self.seed)
-        lst, ytss, ztss = [], [], []
+        lst = []
         for params in sampler:
+            ytss, ztss = [], []
             for train_index, test_index in skf.split(Xw, y):
                 # prepare data sets
                 Xwtr = Xw[train_index]
@@ -308,8 +309,9 @@ array([1, 0])
         # rs.fit()
 
         sampler = ParameterSampler(self.search_space, self.n_iter, random_state=self.seed)
-        lst, ytss, ztss = [], [], []
+        lst = []
         for params in sampler:
+            ytss, ztss = [], []
             for train_index, test_index in skf.split(Xw, y):
                 # prepare data sets
                 Xwtr = Xw[train_index]
@@ -374,8 +376,9 @@ Ignored.</p>
     # rs.fit()
 
     sampler = ParameterSampler(self.search_space, self.n_iter, random_state=self.seed)
-    lst, ytss, ztss = [], [], []
+    lst = []
     for params in sampler:
+        ytss, ztss = [], []
         for train_index, test_index in skf.split(Xw, y):
             # prepare data sets
             Xwtr = Xw[train_index]
