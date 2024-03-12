@@ -96,5 +96,5 @@ git push origin main "v$(poetry version | cut -d' ' -f2)"
 echo "------------------- pushed ----------------------"
 echo; echo
 
-echo "------------------- publish ----------------------"
-poetry publish --build
+# echo "------------------- publish ----------------------"
+# poetry publish --build
