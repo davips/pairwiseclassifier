@@ -280,5 +280,5 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
     def __repr__(self, **kwargs):
         return "PW" + repr(self.algorithm)
 
-    # def __sklearn_clone__(self):
-    #     return PairwiseClassifier(self.n_estimators, self.n_jobs, self.random_state, self.diff)
+    def __sklearn_clone__(self):
+        return PairwiseClassifier(self.algorithm, self.pairwise, self.threshold, self.proportion, self.center, self.only_relevant_pairs_on_prediction, **self.kwargs)

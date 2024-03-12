@@ -1,1 +1,2 @@
-Fix OptimizedPairwiseClassifier accumulating all predictions
+Fix sklearn cloning
+Add opt_results attribute
