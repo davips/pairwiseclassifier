@@ -1,1 +1,1 @@
-Fix OptimizedPairwiseClassifier not running all `n_iter`
+Fix OptimizedPairwiseClassifier accumulating all predictions

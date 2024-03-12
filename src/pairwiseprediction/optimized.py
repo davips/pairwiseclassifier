@@ -61,18 +61,18 @@ class OptimizedPairwiseClassifier(PairwiseClassifier):
     """
 
     def __init__(
-        self,
-        search_space,
-        n_iter,
-        k=5,
-        seed=0,
-        algorithm=RandomForestClassifier,
-        pairwise="concatenation",
-        threshold=0,
-        proportion=False,
-        center=None,
-        only_relevant_pairs_on_prediction=False,
-        **kwargs
+            self,
+            search_space,
+            n_iter,
+            k=5,
+            seed=0,
+            algorithm=RandomForestClassifier,
+            pairwise="concatenation",
+            threshold=0,
+            proportion=False,
+            center=None,
+            only_relevant_pairs_on_prediction=False,
+            **kwargs
     ):
         super().__init__(algorithm, pairwise, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs)
         self.search_space = search_space
@@ -103,8 +103,9 @@ class OptimizedPairwiseClassifier(PairwiseClassifier):
         # rs.fit()
 
         sampler = ParameterSampler(self.search_space, self.n_iter, random_state=self.seed)
-        lst, ytss, ztss = [], [], []
+        lst = []
         for params in sampler:
+            ytss, ztss = [], []
             for train_index, test_index in skf.split(Xw, y):
                 # prepare data sets
                 Xwtr = Xw[train_index]
