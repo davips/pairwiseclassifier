@@ -77,30 +77,32 @@ class OptimizedPairwiseClassifier(PairwiseClassifier):
     ...    &#39;min_samples_leaf&#39;: [10, 20, 30]
     ... }
     &gt;&gt;&gt; alg = OptimizedPairwiseClassifier(spc, 2, n_estimators=3, threshold=20, only_relevant_pairs_on_prediction=False, random_state=0, n_jobs=-1)
-    &gt;&gt;&gt; np.mean(cross_val_score(alg, X[:50], y[:50], cv=StratifiedKFold(n_splits=2)))  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-    0.7...
+    &gt;&gt;&gt; round(np.mean(cross_val_score(alg, X[:50], y[:50], cv=StratifiedKFold(n_splits=2))), 2)
+    0.64
     &gt;&gt;&gt; alg = alg.fit(X[:80])
     &gt;&gt;&gt; alg.predict(X[:2])
     array([1, 0])
     &gt;&gt;&gt; alg.best_score  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
     0.6...
     &gt;&gt;&gt; alg.best_params  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-    {&#39;criterion&#39;: &#39;gini&#39;, &#39;max_depth&#39;: 9, &#39;max_leaf_nodes&#39;: 22, &#39;min_impurity_decrease&#39;: 0.008121687287754932, &#39;min_samples_leaf&#39;: 30, &#39;min_samples_split&#39;: 20}
-    &#34;&#34;&#34;
+    {&#39;criterion&#39;: &#39;entropy&#39;, &#39;max_depth&#39;: 4, &#39;max_leaf_nodes&#39;: 24, &#39;min_impurity_decrease&#39;: 0.001..., &#39;min_samples_leaf&#39;: 10, &#39;min_samples_split&#39;: 30}
+    &gt;&gt;&gt; alg.opt_results  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+    [(0.61..., {&#39;criterion&#39;: &#39;gini&#39;, &#39;max_depth&#39;: 9, &#39;max_leaf_nodes&#39;: 22, &#39;min_impurity_decrease&#39;: 0.008..., &#39;min_samples_leaf&#39;: 30, &#39;min_samples_split&#39;: 20}), (0.6023275581889547, {&#39;criterion&#39;: &#39;entropy&#39;, &#39;max_depth&#39;: 4, &#39;max_leaf_nodes&#39;: 24, &#39;min_impurity_decrease&#39;: 0.0011827442586893322, &#39;min_samples_leaf&#39;: 10, &#39;min_samples_split&#39;: 30})]
 
+    &#34;&#34;&#34;
     def __init__(
-            self,
-            search_space,
-            n_iter,
-            k=5,
-            seed=0,
-            algorithm=RandomForestClassifier,
-            pairwise=&#34;concatenation&#34;,
-            threshold=0,
-            proportion=False,
-            center=None,
-            only_relevant_pairs_on_prediction=False,
-            **kwargs
+        self,
+        search_space,
+        n_iter,
+        k=5,
+        seed=0,
+        algorithm=RandomForestClassifier,
+        pairwise=&#34;concatenation&#34;,
+        threshold=0,
+        proportion=False,
+        center=None,
+        only_relevant_pairs_on_prediction=False,
+        **kwargs
     ):
         super().__init__(algorithm, pairwise, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs)
         self.search_space = search_space
@@ -124,14 +126,9 @@ class OptimizedPairwiseClassifier(PairwiseClassifier):
         # noinspection PyUnresolvedReferences
         y = (w &gt;= self.center).astype(int)
         skf = StratifiedKFold(n_splits=self.k, random_state=self.seed, shuffle=True)
-
-        # rs = RandomizedSearchCV(pre_dispatch=&#34;n_jobs//2&#34;, cv=skf, n_jobs=self.njobs, estimator=self.algorithm(**self.kwargs), param_distributions=self.search_space, n_iter=self.n_iter, random_state=self.seed, scoring=&#34;balanced_accuracy&#34;)
-        # Xwts = pair_rows(Xw[test_index], reflexive=True)
-        # yts = (Xwts[:-1:2, -1] &gt; Xwts[1::2, -1]).astype(int)
-        # rs.fit()
-
         sampler = ParameterSampler(self.search_space, self.n_iter, random_state=self.seed)
         lst = []
+        best_score = -1
         for params in sampler:
             ytss, ztss = [], []
             for train_index, test_index in skf.split(Xw, y):
@@ -145,13 +142,17 @@ class OptimizedPairwiseClassifier(PairwiseClassifier):
                 super().fit_(Xwtr, extra_kwargs=params)
                 zts = super().predict(Xwts, paired_rows=True)[::2]
                 ztss.extend(zts)
-            lst.append((1 - balanced_accuracy_score(ytss, ztss), list(params.items())))
-        heapify(lst)
-        best_score, tups = heappop(lst)
-        self.best_params = dict(tups)
-        self.best_score = 1 - best_score
+            score = balanced_accuracy_score(ytss, ztss)
+            lst.append((score, params))
+            if score &gt; best_score:
+                self.best_score = score
+                self.best_params = params.copy()
+        self.opt_results = lst.copy()
         super().fit_(Xw, extra_kwargs=self.best_params)  # `_estimator` will contain the best_estimator
-        return self</code></pre>
+        return self
+
+    def __sklearn_clone__(self):
+        return OptimizedPairwiseClassifier(self.search_space, self.n_iter, self.k, self.seed, self.algorithm, self.pairwise, self.threshold, self.proportion, self.center, self.only_relevant_pairs_on_prediction, **self.kwargs)</code></pre>
 </details>
 </section>
 <section>
@@ -202,15 +203,17 @@ RandomizedSearchCV can be used, but each pair leaks information, resulting in a 
 ...    'min_samples_leaf': [10, 20, 30]
 ... }
 &gt;&gt;&gt; alg = OptimizedPairwiseClassifier(spc, 2, n_estimators=3, threshold=20, only_relevant_pairs_on_prediction=False, random_state=0, n_jobs=-1)
-&gt;&gt;&gt; np.mean(cross_val_score(alg, X[:50], y[:50], cv=StratifiedKFold(n_splits=2)))  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-0.7...
+&gt;&gt;&gt; round(np.mean(cross_val_score(alg, X[:50], y[:50], cv=StratifiedKFold(n_splits=2))), 2)
+0.64
 &gt;&gt;&gt; alg = alg.fit(X[:80])
 &gt;&gt;&gt; alg.predict(X[:2])
 array([1, 0])
 &gt;&gt;&gt; alg.best_score  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
 0.6...
 &gt;&gt;&gt; alg.best_params  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-{'criterion': 'gini', 'max_depth': 9, 'max_leaf_nodes': 22, 'min_impurity_decrease': 0.008121687287754932, 'min_samples_leaf': 30, 'min_samples_split': 20}
+{'criterion': 'entropy', 'max_depth': 4, 'max_leaf_nodes': 24, 'min_impurity_decrease': 0.001..., 'min_samples_leaf': 10, 'min_samples_split': 30}
+&gt;&gt;&gt; alg.opt_results  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+[(0.61..., {'criterion': 'gini', 'max_depth': 9, 'max_leaf_nodes': 22, 'min_impurity_decrease': 0.008..., 'min_samples_leaf': 30, 'min_samples_split': 20}), (0.6023275581889547, {'criterion': 'entropy', 'max_depth': 4, 'max_leaf_nodes': 24, 'min_impurity_decrease': 0.0011827442586893322, 'min_samples_leaf': 10, 'min_samples_split': 30})]
 </code></pre></div>
 <details class="source">
 <summary>
@@ -255,30 +258,32 @@ array([1, 0])
     ...    &#39;min_samples_leaf&#39;: [10, 20, 30]
     ... }
     &gt;&gt;&gt; alg = OptimizedPairwiseClassifier(spc, 2, n_estimators=3, threshold=20, only_relevant_pairs_on_prediction=False, random_state=0, n_jobs=-1)
-    &gt;&gt;&gt; np.mean(cross_val_score(alg, X[:50], y[:50], cv=StratifiedKFold(n_splits=2)))  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-    0.7...
+    &gt;&gt;&gt; round(np.mean(cross_val_score(alg, X[:50], y[:50], cv=StratifiedKFold(n_splits=2))), 2)
+    0.64
     &gt;&gt;&gt; alg = alg.fit(X[:80])
     &gt;&gt;&gt; alg.predict(X[:2])
     array([1, 0])
     &gt;&gt;&gt; alg.best_score  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
     0.6...
     &gt;&gt;&gt; alg.best_params  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
-    {&#39;criterion&#39;: &#39;gini&#39;, &#39;max_depth&#39;: 9, &#39;max_leaf_nodes&#39;: 22, &#39;min_impurity_decrease&#39;: 0.008121687287754932, &#39;min_samples_leaf&#39;: 30, &#39;min_samples_split&#39;: 20}
-    &#34;&#34;&#34;
+    {&#39;criterion&#39;: &#39;entropy&#39;, &#39;max_depth&#39;: 4, &#39;max_leaf_nodes&#39;: 24, &#39;min_impurity_decrease&#39;: 0.001..., &#39;min_samples_leaf&#39;: 10, &#39;min_samples_split&#39;: 30}
+    &gt;&gt;&gt; alg.opt_results  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
+    [(0.61..., {&#39;criterion&#39;: &#39;gini&#39;, &#39;max_depth&#39;: 9, &#39;max_leaf_nodes&#39;: 22, &#39;min_impurity_decrease&#39;: 0.008..., &#39;min_samples_leaf&#39;: 30, &#39;min_samples_split&#39;: 20}), (0.6023275581889547, {&#39;criterion&#39;: &#39;entropy&#39;, &#39;max_depth&#39;: 4, &#39;max_leaf_nodes&#39;: 24, &#39;min_impurity_decrease&#39;: 0.0011827442586893322, &#39;min_samples_leaf&#39;: 10, &#39;min_samples_split&#39;: 30})]
 
+    &#34;&#34;&#34;
     def __init__(
-            self,
-            search_space,
-            n_iter,
-            k=5,
-            seed=0,
-            algorithm=RandomForestClassifier,
-            pairwise=&#34;concatenation&#34;,
-            threshold=0,
-            proportion=False,
-            center=None,
-            only_relevant_pairs_on_prediction=False,
-            **kwargs
+        self,
+        search_space,
+        n_iter,
+        k=5,
+        seed=0,
+        algorithm=RandomForestClassifier,
+        pairwise=&#34;concatenation&#34;,
+        threshold=0,
+        proportion=False,
+        center=None,
+        only_relevant_pairs_on_prediction=False,
+        **kwargs
     ):
         super().__init__(algorithm, pairwise, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs)
         self.search_space = search_space
@@ -302,14 +307,9 @@ array([1, 0])
         # noinspection PyUnresolvedReferences
         y = (w &gt;= self.center).astype(int)
         skf = StratifiedKFold(n_splits=self.k, random_state=self.seed, shuffle=True)
-
-        # rs = RandomizedSearchCV(pre_dispatch=&#34;n_jobs//2&#34;, cv=skf, n_jobs=self.njobs, estimator=self.algorithm(**self.kwargs), param_distributions=self.search_space, n_iter=self.n_iter, random_state=self.seed, scoring=&#34;balanced_accuracy&#34;)
-        # Xwts = pair_rows(Xw[test_index], reflexive=True)
-        # yts = (Xwts[:-1:2, -1] &gt; Xwts[1::2, -1]).astype(int)
-        # rs.fit()
-
         sampler = ParameterSampler(self.search_space, self.n_iter, random_state=self.seed)
         lst = []
+        best_score = -1
         for params in sampler:
             ytss, ztss = [], []
             for train_index, test_index in skf.split(Xw, y):
@@ -323,13 +323,17 @@ array([1, 0])
                 super().fit_(Xwtr, extra_kwargs=params)
                 zts = super().predict(Xwts, paired_rows=True)[::2]
                 ztss.extend(zts)
-            lst.append((1 - balanced_accuracy_score(ytss, ztss), list(params.items())))
-        heapify(lst)
-        best_score, tups = heappop(lst)
-        self.best_params = dict(tups)
-        self.best_score = 1 - best_score
+            score = balanced_accuracy_score(ytss, ztss)
+            lst.append((score, params))
+            if score &gt; best_score:
+                self.best_score = score
+                self.best_params = params.copy()
+        self.opt_results = lst.copy()
         super().fit_(Xw, extra_kwargs=self.best_params)  # `_estimator` will contain the best_estimator
-        return self</code></pre>
+        return self
+
+    def __sklearn_clone__(self):
+        return OptimizedPairwiseClassifier(self.search_space, self.n_iter, self.k, self.seed, self.algorithm, self.pairwise, self.threshold, self.proportion, self.center, self.only_relevant_pairs_on_prediction, **self.kwargs)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -369,14 +373,9 @@ Ignored.</p>
     # noinspection PyUnresolvedReferences
     y = (w &gt;= self.center).astype(int)
     skf = StratifiedKFold(n_splits=self.k, random_state=self.seed, shuffle=True)
-
-    # rs = RandomizedSearchCV(pre_dispatch=&#34;n_jobs//2&#34;, cv=skf, n_jobs=self.njobs, estimator=self.algorithm(**self.kwargs), param_distributions=self.search_space, n_iter=self.n_iter, random_state=self.seed, scoring=&#34;balanced_accuracy&#34;)
-    # Xwts = pair_rows(Xw[test_index], reflexive=True)
-    # yts = (Xwts[:-1:2, -1] &gt; Xwts[1::2, -1]).astype(int)
-    # rs.fit()
-
     sampler = ParameterSampler(self.search_space, self.n_iter, random_state=self.seed)
     lst = []
+    best_score = -1
     for params in sampler:
         ytss, ztss = [], []
         for train_index, test_index in skf.split(Xw, y):
@@ -390,11 +389,12 @@ Ignored.</p>
             super().fit_(Xwtr, extra_kwargs=params)
             zts = super().predict(Xwts, paired_rows=True)[::2]
             ztss.extend(zts)
-        lst.append((1 - balanced_accuracy_score(ytss, ztss), list(params.items())))
-    heapify(lst)
-    best_score, tups = heappop(lst)
-    self.best_params = dict(tups)
-    self.best_score = 1 - best_score
+        score = balanced_accuracy_score(ytss, ztss)
+        lst.append((score, params))
+        if score &gt; best_score:
+            self.best_score = score
+            self.best_params = params.copy()
+    self.opt_results = lst.copy()
     super().fit_(Xw, extra_kwargs=self.best_params)  # `_estimator` will contain the best_estimator
     return self</code></pre>
 </details>

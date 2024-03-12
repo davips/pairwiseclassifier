@@ -308,8 +308,8 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
     def __repr__(self, **kwargs):
         return &#34;PW&#34; + repr(self.algorithm)
 
-    # def __sklearn_clone__(self):
-    #     return PairwiseClassifier(self.n_estimators, self.n_jobs, self.random_state, self.diff)</code></pre>
+    def __sklearn_clone__(self):
+        return PairwiseClassifier(self.algorithm, self.pairwise, self.threshold, self.proportion, self.center, self.only_relevant_pairs_on_prediction, **self.kwargs)</code></pre>
 </details>
 </section>
 <section>
@@ -639,8 +639,8 @@ array([1, 0, 0, 1, 1, 0])
     def __repr__(self, **kwargs):
         return &#34;PW&#34; + repr(self.algorithm)
 
-    # def __sklearn_clone__(self):
-    #     return PairwiseClassifier(self.n_estimators, self.n_jobs, self.random_state, self.diff)</code></pre>
+    def __sklearn_clone__(self):
+        return PairwiseClassifier(self.algorithm, self.pairwise, self.threshold, self.proportion, self.center, self.only_relevant_pairs_on_prediction, **self.kwargs)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">

@@ -62,6 +62,7 @@ class OptimizedPairwiseClassifier(PairwiseClassifier):
     [(0.61..., {'criterion': 'gini', 'max_depth': 9, 'max_leaf_nodes': 22, 'min_impurity_decrease': 0.008..., 'min_samples_leaf': 30, 'min_samples_split': 20}), (0.6023275581889547, {'criterion': 'entropy', 'max_depth': 4, 'max_leaf_nodes': 24, 'min_impurity_decrease': 0.0011827442586893322, 'min_samples_leaf': 10, 'min_samples_split': 30})]
 
     """
+
     def __init__(
         self,
         search_space,
@@ -124,4 +125,6 @@ class OptimizedPairwiseClassifier(PairwiseClassifier):
         return self
 
     def __sklearn_clone__(self):
-        return OptimizedPairwiseClassifier(self.search_space, self.n_iter, self.k, self.seed, self.algorithm, self.pairwise, self.threshold, self.proportion, self.center, self.only_relevant_pairs_on_prediction, **self.kwargs)
+        return OptimizedPairwiseClassifier(
+            self.search_space, self.n_iter, self.k, self.seed, self.algorithm, self.pairwise, self.threshold, self.proportion, self.center, self.only_relevant_pairs_on_prediction, **self.kwargs
+        )
