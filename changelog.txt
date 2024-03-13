@@ -1,2 +1,1 @@
-Fix sklearn cloning
-Add opt_results attribute
+Fix optimization not selecting best score

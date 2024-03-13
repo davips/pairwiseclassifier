@@ -101,7 +101,7 @@ class OptimizedPairwiseClassifier(PairwiseClassifier):
         skf = StratifiedKFold(n_splits=self.k, random_state=self.seed, shuffle=True)
         sampler = ParameterSampler(self.search_space, self.n_iter, random_state=self.seed)
         lst = []
-        best_score = -1
+        self.best_score = -1
         for params in sampler:
             ytss, ztss = [], []
             for train_index, test_index in skf.split(Xw, y):
@@ -117,7 +117,7 @@ class OptimizedPairwiseClassifier(PairwiseClassifier):
                 ztss.extend(zts)
             score = balanced_accuracy_score(ytss, ztss)
             lst.append((score, params))
-            if score > best_score:
+            if score > self.best_score:
                 self.best_score = score
                 self.best_params = params.copy()
         self.opt_results = lst.copy()
